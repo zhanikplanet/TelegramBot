@@ -1,11 +1,15 @@
-import openai
+from openai import AsyncOpenAI
 from app.config import settings
 
-openai.api_key = settings.openai_api_key
+client = AsyncOpenAI(api_key=settings.openai_api_key)   # ① создаём клиент
+
+MODEL_NAME = settings.openai_model                      # "gpt-4o-mini" и т.д.
 
 async def ask_openai(prompt: str) -> str:
-    resp = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}]
+    """Отдаёт ответ ассистента на один промпт."""
+    response = await client.chat.completions.create(    # ② новый вызов
+        model=MODEL_NAME,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
     )
-    return resp.choices[0].message.content.strip()
+    return response.choices[0].message.content.strip()

@@ -1,16 +1,26 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db import models, schemas
+from sqlalchemy.orm import Session
+from . import models, schemas
 
 # User
-def get_user_by_telegram_id(db: Session, telegram_id: int) -> Optional[models.User]:
-    return db.query(models.User).filter(models.User.telegram_id == telegram_id).first()
+def get_user(db: Session, user_id: int) -> Optional[models.User]:
+    return db.get(models.User, user_id)
 
-def create_user(db: Session, user_in: schemas.UserCreate) -> models.User:
-    db_user = models.User(**user_in.dict())
-    db.add(db_user)
-    db.commit(); db.refresh(db_user)
-    return db_user
+def create_user(db: Session, user_id: int, name: str | None = None,
+                contact: str | None = None) -> models.User:
+    user = models.User(id=user_id, name=name, contact=contact)
+    db.add(user); db.commit(); db.refresh(user)
+    return user
+
+def get_or_create_user(db: Session, user_id: int,
+                       name: str | None = None) -> models.User:
+    user = db.get(models.User, user_id)
+    if user:
+        return user
+    return create_user(db, user_id, name)
+
 
 # FAQ
 def get_faqs(db: Session) -> List[models.FAQ]:
@@ -57,3 +67,4 @@ def get_session_messages(db: Session, session_id: int) -> List[models.Message]:
           .order_by(models.Message.timestamp)
           .all()
     )
+    

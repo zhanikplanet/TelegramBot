@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from app.db.session import SessionLocal
-from app.db.crud import get_user_by_telegram_id, create_user
+from app.db.crud import get_user, create_user
 from app.telegram_bot.keyboards import main_keyboard
 
 async def handle_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

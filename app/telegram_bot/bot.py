@@ -8,7 +8,7 @@ from telegram.request import HTTPXRequest
 
 from app.config import settings
 from app.telegram_bot.keyboards import main_keyboard
-from app.telegram_bot.faq import faq_command, faq_choice
+from app.telegram_bot.faq import faq_command, faq_choice, faq_back
 from app.telegram_bot.operator import (
     escalate_to_operator, handle_operator_reply
 )
@@ -23,19 +23,22 @@ async def start_command(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     welcome_text = (
         f"👋 Привет, {user.first_name or 'друг'}!\n\n"
-        "Я FAQ‑бот.\n"
+        "Я бот WALL-E, помогу тебе с твоими вопросами.\n"
         "• Нажми «FAQ», чтобы увидеть популярные вопросы.\n"
         "• Нажми «Новый вопрос», чтобы задать свой.\n"
-        "После двух ответов ИИ можно будет вызвать оператора."
+        "Используя этот бот вы даете согласие на обработку своих данных."
     )
     await update.message.reply_text(welcome_text, reply_markup=main_keyboard(ai_count=0))
 
 # ─────────────────────────────────────────────────────────────
 async def user_message(update, ctx):
     text = update.message.text
-    uid = update.effective_user.id
-    db = SessionLocal()
+    uid  = update.effective_user.id
+    db   = SessionLocal()
 
+    # ➊ гарантируем, что пользователь существует
+    crud.get_or_create_user(db, uid, update.effective_user.first_name)
+    
     if text.lower() == 'оператор' and ctx.user_data.get('ai_count', 0) >= 2:
         db.close()
         return await escalate_to_operator(update, ctx)
@@ -89,7 +92,8 @@ async def main_bot():
     app = ApplicationBuilder().token(settings.bot_token).request(request).build()
 
     app.add_handler(CommandHandler('start', start_command))
-    app.add_handler(CallbackQueryHandler(faq_choice, pattern='^faq_'))
+    app.add_handler(CallbackQueryHandler(faq_back,  pattern=r'^faq_back$'))
+    app.add_handler(CallbackQueryHandler(faq_choice, pattern=r'^faq_[0-9]+$'))
     app.add_handler(MessageHandler(filters.TEXT & filters.User(settings.operator_chat_ids), handle_operator_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, user_message))
 

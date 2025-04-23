@@ -10,7 +10,7 @@ from .schemas import (
     SessionBase, SessionCreate, SessionRead,
 )
 from .crud import (
-    get_user_by_telegram_id, create_user,
+    get_user, create_user,
     get_faqs,
     create_question,
     get_active_session, create_session, close_session,
@@ -25,7 +25,7 @@ __all__ = [
     "QuestionBase", "QuestionCreate", "QuestionRead",
     "MessageBase", "MessageCreate", "MessageRead",
     "SessionBase", "SessionCreate", "SessionRead",
-    "get_user_by_telegram_id", "create_user",
+    "get_user", "create_user",
     "get_faqs",
     "create_question",
     "get_active_session", "create_session", "close_session",

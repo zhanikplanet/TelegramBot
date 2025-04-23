@@ -7,16 +7,14 @@ from app.db.session import Base
 
 class User(Base):
     __tablename__ = "users"
-    id           = Column(Integer, primary_key=True, index=True)
-    telegram_id  = Column(Integer, unique=True, index=True, nullable=False)
-    first_name   = Column(String)
-    last_name    = Column(String)
-    username     = Column(String)
-    created_at   = Column(DateTime, default=datetime.utcnow)
 
-    # relationships
-    questions    = relationship("Question", back_populates="user")
-    sessions     = relationship("Session", back_populates="user")
+    id       = Column(Integer, primary_key=True, index=True)   
+    name     = Column(String)        
+    contact  = Column(String)
+
+    questions = relationship("Question", back_populates="user")
+    sessions  = relationship("Session",  back_populates="user")
+
 
 class FAQ(Base):
     __tablename__ = "faq"

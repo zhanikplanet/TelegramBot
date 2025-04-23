@@ -4,13 +4,13 @@ from datetime import datetime
 
 # User
 class UserBase(BaseModel):
-    telegram_id: int
-    first_name: Optional[str]
-    last_name: Optional[str]
-    username: Optional[str]
+    id: int                       # primary key == telegram id
+    name: Optional[str]
+    contact: Optional[str]
 
 class UserCreate(UserBase):
     pass
+
 
 class UserRead(UserBase):
     id: int

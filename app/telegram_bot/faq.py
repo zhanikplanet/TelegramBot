@@ -1,38 +1,63 @@
-from telegram import Update
-from telegram.ext import ContextTypes, CallbackQueryHandler
-from app.telegram_bot.keyboards import faq_keyboard, main_keyboard
+# app/telegram_bot/faq.py
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ContextTypes
 from app.db.session import SessionLocal
-from app.db.crud import get_faqs, create_message
+from app.db import models      # если FAQ хранится в БД
 
-async def faq_command(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Используя этот чат, вы даёте согласие на обработку...")
-    await update.message.reply_text(
-        "Выберите вопрос:", reply_markup=faq_keyboard())
-
-async def faq_choice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+# ─────────────────────────────────────────────────────────────
+def _load_faq() -> list[tuple[int, str, str]]:
     db = SessionLocal()
-    data = update.callback_query.data
-    faq_id = int(data.split('_')[1])
-    faqs = get_faqs(db)
-    answer = next((f.answer for f in faqs if f.id == faq_id), "" )
-    # save to history (no session yet)
-    create_message(db, schemas.MessageCreate(
-        session_id=None,
-        user_id=update.effective_user.id,
-        role="user",
-        text=f"FAQ запрос {faq_id}"
-    ))
-    create_message(db, schemas.MessageCreate(
-        session_id=None,
-        user_id=update.effective_user.id,
-        role="bot",
-        text=answer
-    ))
-    db.close()
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text(answer)
-    await update.callback_query.message.reply_text(
-        "Чем ещё помочь?",
-        reply_markup=main_keyboard(ctx.user_data.get('ai_count',0))
+    try:
+        rows = db.query(models.FAQ).all()           # модель FAQ(id,q,a)
+        return [(row.id, row.question, row.answer) for row in rows]
+    finally:
+        db.close()
+
+# ─────────────────────────────────────────────────────────────
+async def faq_command(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    faq = _load_faq()
+    if not faq:
+        return await ctx.bot.send_message(chat_id, "FAQ пока пуст.")
+
+    keyboard = [[InlineKeyboardButton(q, callback_data=f"faq_{fid}")]
+                for fid, q, _ in faq]
+    await ctx.bot.send_message(
+        chat_id,
+        "Частые вопросы:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+# ─────────────────────────────────────────────────────────────
+async def faq_choice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    parts = query.data.split("_", 1)
+    if len(parts) != 2 or not parts[1].isdigit():
+        return              # пришёл невалидный callback
+
+    fid = int(parts[1])
+    faq = {i: (q, a) for i, q, a in _load_faq()}
+    question, answer = faq.get(fid, ("Не найдено", "—"))
+
+    # показываем ответ + кнопку «⬅︎ Назад»
+    kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("⬅︎ Назад к FAQ", callback_data="faq_back")]]
+    )
+    await query.edit_message_text(
+        f"❓ <b>{question}</b>\n\n{answer}",
+        reply_markup=kb,
+        parse_mode="HTML"
+    )
+
+# ─────────────────────────────────────────────────────────────
+async def faq_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    # удаляем сообщение с ответом
+    await query.message.delete()
+
+    # отправляем список FAQ заново
+    await faq_command(update, ctx)
